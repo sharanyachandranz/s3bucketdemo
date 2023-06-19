@@ -1,1 +1,40 @@
+name: Upload to S3
+
+on:
+  push:
+    branches:
+      - 'rc_*.*.*'
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Filter branch name
+        id: filter
+        run: echo "::set-output name=branch::$(echo ${{ github.ref }} | sed 's/refs\/heads\///')"
+
+      - name: Check if branch matches pattern
+        id: branch-check
+        run: |
+          if [[ "${{ steps.filter.outputs.branch }}" =~ ^rc_[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Branch matches the pattern."
+          else
+            echo "Branch does not match the pattern. Skipping file upload."
+            exit 0
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:  ap-south-1
+
+      - name: Upload files to S3
+        run: |
+          aws s3 cp . s3://statging --recursive
 
